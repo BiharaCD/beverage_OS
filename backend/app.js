@@ -26,7 +26,8 @@ app.use(express.json()); // parse JSON
 
 const allowedOrigins = [
   'http://localhost:3000', // your Vite dev frontend port
-  'https://frontend-499ux9v0z-biharas-projects.vercel.app'
+  'https://beverage-b5t6g25wm-biharas-projects.vercel.app' // deployed frontend
+
 ];
 
 app.use(cors({
