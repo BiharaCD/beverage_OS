@@ -1,0 +1,95 @@
+import GRN from "../models/grn.js";
+import Inventory from "../models/inventory.js";
+
+// Create GRN and update inventory
+export const createGRN = async (req, res) => {
+  try {
+    const { poID, items, QC } = req.body;
+
+    // Validate required fields
+    if (!poID) {
+      return res.status(400).json({ message: "Purchase Order ID is required" });
+    }
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({ message: "At least one item is required" });
+    }
+
+    // Validate each item
+    for (const item of items) {
+      if (!item.itemName) {
+        return res.status(400).json({ message: "Item name is required for all items" });
+      }
+      if (!item.category) {
+        return res.status(400).json({ message: "Category is required for all items" });
+      }
+      if (item.quantityReceived === undefined || item.quantityReceived === null || item.quantityReceived === '') {
+        return res.status(400).json({ message: "Quantity received is required for all items" });
+      }
+      if (isNaN(item.quantityReceived) || Number(item.quantityReceived) <= 0) {
+        return res.status(400).json({ message: "Quantity must be a positive number" });
+      }
+    }
+
+    const grn = new GRN({ poID, items, QC });
+    
+    await grn.save();
+
+    // Update inventory - match by itemName AND category
+    for (const item of items) {
+      const inv = await Inventory.findOne({ itemName: item.itemName, category: item.category });
+      if (inv) {
+        inv.quantity += Number(item.quantityReceived);
+        if (item.lotNumber) inv.lotNumber = item.lotNumber;
+        if (item.expiryDate) inv.expiryDate = item.expiryDate;
+        // Update QC status from GRN
+        if (QC) {
+          inv.QCstatus = QC;
+        }
+        await inv.save();
+      } else {
+        // If inventory item doesn't exist, create it
+        const newInv = new Inventory({
+          itemCode: `ITEM-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          itemName: item.itemName,
+          SKU: `SKU-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          category: item.category,
+          quantity: Number(item.quantityReceived),
+          lotNumber: item.lotNumber,
+          expiryDate: item.expiryDate,
+          QCstatus: QC || 'Pass',
+        });
+        await newInv.save();
+      }
+    }
+
+    res.status(201).json(grn);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// Get all GRNs
+export const getGRNs = async (req, res) => {
+  try {
+    const grns = await GRN.find().populate("poID");
+    res.json(grns);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Update GRN status
+export const updateGRNStatus = async (req, res) => {
+  try {
+    const grn = await GRN.findByIdAndUpdate(
+      req.params.id,
+      { status: req.body.status, updatedAt: Date.now() },
+      { new: true }
+    ).populate("poID");
+    if (!grn) return res.status(404).json({ message: "GRN not found" });
+    res.json(grn);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
