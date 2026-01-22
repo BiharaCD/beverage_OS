@@ -26,8 +26,8 @@ app.use(express.json()); // parse JSON
 
 const allowedOrigins = [
   'http://localhost:3000', // your Vite dev frontend port
-  'https://beverage-b5t6g25wm-biharas-projects.vercel.app' // deployed frontend
-
+   "http://localhost:5173", // Vite default (important)
+   "https://beverage-os-vxn1.vercel.app"
 ];
 
 app.use(cors({
@@ -43,6 +43,7 @@ app.use(cors({
   credentials: true
 }));
 
+app.options("*", cors()); // VERY IMPORTANT
 
 // --- Routes ---
 app.use("/api/auth", authRoutes);
